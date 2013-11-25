@@ -1,6 +1,8 @@
 pyrx
 ====
 
+[![Build Status](https://travis-ci.org/uniphil/pyrx.png)](https://travis-ci.org/uniphil/pyrx)
+
 Python implementation of the [Rx schema and validation system](http://rx.codesimply.com/)
 
 
