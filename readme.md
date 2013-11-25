@@ -38,7 +38,7 @@ Usage
 ```python
 import pyrx
 
-rx = pyrx.Factory({"register_core_types": true})
+rx = pyrx.Factory({"register_core_types": True})
 
 schema_src = {
   "type": "//rec",
