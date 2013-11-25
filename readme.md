@@ -68,6 +68,10 @@ I didn't bring the tests over from the rx repo. They used `TAP` or something
 I'm not familiar with. The tests included here just run through a couple
 trivial cases to make sure it doesn't straight-up crash.
 
-So, porting tests will be next up, and then porting to python3.
 
-And then built-in support for files, both json and yaml. Maybe...
+Road Map
+--------
+
+1. Porting tests from the original RX repo (but using unittest)
+2. Port to python3
+3. File support, with options for `json` and `yaml` .. ... maybe.
