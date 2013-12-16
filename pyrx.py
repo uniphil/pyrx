@@ -231,7 +231,7 @@ class IntType(_CoreType):
             raise RxError('unknown parameter for //int')
 
         self.value = None
-        if schema.has_key('value'):
+        if 'value' in schema:
             if not isinstance(schema['value'], num_types) or \
                isinstance(schema['value'], bool):
                 raise RxError('invalid value parameter for //int')
@@ -240,7 +240,7 @@ class IntType(_CoreType):
             self.value = schema['value']
 
         self.range = None
-        if schema.has_key('range'):
+        if 'range' in schema:
             self.range = Util.make_range_check( schema["range"] )
 
     def check(self, value):
@@ -289,7 +289,7 @@ class NumType(_CoreType):
             raise RxError('unknown parameter for //num')
 
         self.value = None
-        if schema.has_key('value'):
+        if 'value' in schema:
             if not isinstance(schema['value'], num_types) or \
                isinstance(schema['value'], bool):
                 raise RxError('invalid value parameter for //num')
@@ -351,11 +351,13 @@ class RecType(_CoreType):
         if len(unknown) and not self.rest_schema: return False
 
         for field in self.required.keys():
-            if not value.has_key(field): return False
+            if field not in value:
+                return False
             if not self.required[field].check( value[field] ): return False
 
         for field in self.optional.keys():
-            if not value.has_key(field): continue
+            if field not in value:
+                continue
             if not self.optional[field].check( value[field] ): return False
 
         if len(unknown):
@@ -409,13 +411,13 @@ class StrType(_CoreType):
             raise RxError('unknown parameter for //str')
 
         self.value = None
-        if schema.has_key('value'):
+        if 'value' in schema:
             if not isinstance(schema['value'], string_types):
                 raise RxError('invalid value parameter for //str')
             self.value = schema['value']
 
         self.length = None
-        if schema.has_key('length'):
+        if 'length' in schema:
             self.length = Util.make_range_check( schema["length"] )
 
     def check(self, value):

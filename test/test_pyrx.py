@@ -76,7 +76,7 @@ def normalize(entries, test_data):
     for n in entries: new_entries[n] = None
     entries = new_entries
 
-  if len(entries) == 1 and entries.has_key('*'):
+  if len(entries) == 1 and '*' in entries:
     value = entries["*"]
     entries = { }
     for k in test_data.keys(): entries[k] = value
