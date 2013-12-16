@@ -68,20 +68,22 @@ def check(test_name, method_name, *args):
 
 
 def normalize(entries, test_data):
-  if entries == '*':
-    entries = { "*": None }
+    if entries == '*':
+        entries = { "*": None }
 
-  if type(entries) is type([]):
-    new_entries = { }
-    for n in entries: new_entries[n] = None
-    entries = new_entries
+    if type(entries) is type([]):
+        new_entries = { }
+        for n in entries:
+            new_entries[n] = None
+        entries = new_entries
 
-  if len(entries) == 1 and '*' in entries:
-    value = entries["*"]
-    entries = { }
-    for k in test_data.keys(): entries[k] = value
+    if len(entries) == 1 and '*' in entries:
+        value = entries["*"]
+        entries = { }
+        for k in test_data.keys():
+            entries[k] = value
 
-  return entries
+    return entries
 
 
 # match paths to legacy code

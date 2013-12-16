@@ -43,10 +43,14 @@ class Util(object):
             range[entry] = opt[entry]
 
         def check_range(value):
-            if range.get('min'   ) != None and value <  range['min'   ]: return False
-            if range.get('min-ex') != None and value <= range['min-ex']: return False
-            if range.get('max-ex') != None and value >= range['max-ex']: return False
-            if range.get('max'   ) != None and value >  range['max'   ]: return False
+            if range.get('min'   ) != None and value <  range['min'   ]:
+                return False
+            if range.get('min-ex') != None and value <= range['min-ex']:
+                return False
+            if range.get('max-ex') != None and value >= range['max-ex']:
+                return False
+            if range.get('max'   ) != None and value >  range['max'   ]:
+                return False
             return True
 
         return check_range
@@ -63,10 +67,12 @@ class Factory(object):
             for t in core_types: self.register_type(t)
 
     @staticmethod
-    def _default_prefixes(): pass
+    def _default_prefixes():
+        pass
 
     def expand_uri(self, type_name):
-        if re.match('^\w+:', type_name): return type_name
+        if re.match('^\w+:', type_name):
+            return type_name
 
         m = re.match('^/([-._a-z0-9]*)/([-._a-z0-9]+)$', type_name)
 
@@ -113,7 +119,8 @@ class Factory(object):
 
         uri = self.expand_uri(schema["type"])
 
-        if not self.type_registry.get(uri): raise RxError("unknown type %s" % uri)
+        if not self.type_registry.get(uri):
+            raise RxError("unknown type %s" % uri)
 
         type_class = self.type_registry[ uri ]
 
@@ -133,11 +140,13 @@ class _CoreType(object):
         if not set(schema.keys()).issubset(set(['type'])):
             raise RxError('unknown parameter for //%s' % self.subname())
 
-    def check(self, value): return False
+    def check(self, value):
+        return False
 
 class AllType(_CoreType):
     @staticmethod
-    def subname(): return 'all'
+    def subname():
+        return 'all'
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'of'))):
@@ -150,12 +159,14 @@ class AllType(_CoreType):
 
     def check(self, value):
         for schema in self.alts:
-            if (not schema.check(value)): return False
+            if (not schema.check(value)):
+                return False
         return True
 
 class AnyType(_CoreType):
     @staticmethod
-    def subname(): return 'any'
+    def subname():
+        return 'any'
 
     def __init__(self, schema, rx):
         self.alts = None
@@ -164,20 +175,24 @@ class AnyType(_CoreType):
             raise RxError('unknown parameter for //any')
         
         if schema.get('of') != None:
-            if not schema['of']: raise RxError('no alternatives given in //any of')
+            if not schema['of']:
+                raise RxError('no alternatives given in //any of')
             self.alts = [ rx.make_schema(alt) for alt in schema['of'] ]
 
     def check(self, value):
-        if self.alts is None: return True
+        if self.alts is None:
+            return True
 
         for alt in self.alts:
-            if alt.check(value): return True
+            if alt.check(value):
+                return True
 
         return False
 
 class ArrType(_CoreType):
     @staticmethod
-    def subname(): return 'arr'
+    def subname():
+        return 'arr'
 
     def __init__(self, schema, rx):
         self.length = None
@@ -194,37 +209,47 @@ class ArrType(_CoreType):
             self.length = Util.make_range_check( schema["length"] )
 
     def check(self, value):
-        if not(type(value) in [ type([]), type(()) ]): return False
-        if self.length and not self.length(len(value)): return False
+        if not(type(value) in [ type([]), type(()) ]):
+            return False
+        if self.length and not self.length(len(value)):
+            return False
 
         for item in value:
-            if not self.content_schema.check(item): return False
+            if not self.content_schema.check(item):
+                return False
 
         return True;
 
 class BoolType(_CoreType):
     @staticmethod
-    def subname(): return 'bool'
+    def subname():
+        return 'bool'
 
     def check(self, value):
-        if value is True or value is False: return True
+        if value is True or value is False:
+            return True
         return False
 
 class DefType(_CoreType):
     @staticmethod
-    def subname(): return 'def'
+    def subname():
+        return 'def'
 
-    def check(self, value): return not(value is None)
+    def check(self, value):
+        return not(value is None)
 
 class FailType(_CoreType):
     @staticmethod
-    def subname(): return 'fail'
+    def subname():
+        return 'fail'
 
-    def check(self, value): return False
+    def check(self, value):
+        return False
 
 class IntType(_CoreType):
     @staticmethod
-    def subname(): return 'int'
+    def subname():
+        return 'int'
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'range', 'value'))):
@@ -246,14 +271,18 @@ class IntType(_CoreType):
     def check(self, value):
         if not isinstance(value, num_types) or isinstance(value, bool):
             return False
-        if value % 1 != 0: return False
-        if self.range and not self.range(value): return False
-        if (not self.value is None) and value != self.value: return False
+        if value % 1 != 0:
+            return False
+        if self.range and not self.range(value):
+            return False
+        if (not self.value is None) and value != self.value:
+            return False
         return True
 
 class MapType(_CoreType):
     @staticmethod
-    def subname(): return 'map'
+    def subname():
+        return 'map'
 
     def __init__(self, schema, rx):
         self.allowed = set()
@@ -267,22 +296,27 @@ class MapType(_CoreType):
         self.value_schema = rx.make_schema(schema['values'])
 
     def check(self, value):
-        if not(type(value) is type({})): return False
+        if not(type(value) is type({})):
+            return False
 
         for v in value.values():
-            if not self.value_schema.check(v): return False
+            if not self.value_schema.check(v):
+                return False
 
         return True;
 
 class NilType(_CoreType):
     @staticmethod
-    def subname(): return 'nil'
+    def subname():
+        return 'nil'
 
-    def check(self, value): return value is None
+    def check(self, value):
+        return value is None
 
 class NumType(_CoreType):
     @staticmethod
-    def subname(): return 'num'
+    def subname():
+        return 'num'
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'range', 'value'))):
@@ -303,13 +337,16 @@ class NumType(_CoreType):
     def check(self, value):
         if not isinstance(value, num_types) or isinstance(value, bool):
             return False
-        if self.range and not self.range(value): return False
-        if (not self.value is None) and value != self.value: return False
+        if self.range and not self.range(value):
+            return False
+        if (not self.value is None) and value != self.value:
+            return False
         return True
 
 class OneType(_CoreType):
     @staticmethod
-    def subname(): return 'one'
+    def subname():
+        return 'one'
 
     def check(self, value):
         if isinstance(value, num_types + string_types + (bool,)):
@@ -319,7 +356,8 @@ class OneType(_CoreType):
 
 class RecType(_CoreType):
     @staticmethod
-    def subname(): return 'rec'
+    def subname():
+        return 'rec'
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'rest', 'required', 'optional'))):
@@ -327,7 +365,8 @@ class RecType(_CoreType):
 
         self.known = set()
         self.rest_schema = None
-        if schema.get('rest'): self.rest_schema = rx.make_schema(schema['rest'])
+        if schema.get('rest'):
+            self.rest_schema = rx.make_schema(schema['rest'])
 
         for which in ('required', 'optional'):
             self.__setattr__(which, { })
@@ -342,34 +381,42 @@ class RecType(_CoreType):
                 )
 
     def check(self, value):
-        if not(type(value) is type({})): return False
+        if not(type(value) is type({})):
+            return False
 
         unknown = [ ]
         for field in value.keys():
-            if not field in self.known: unknown.append(field)
+            if not field in self.known:
+                unknown.append(field)
 
-        if len(unknown) and not self.rest_schema: return False
+        if len(unknown) and not self.rest_schema:
+            return False
 
         for field in self.required.keys():
             if field not in value:
                 return False
-            if not self.required[field].check( value[field] ): return False
+            if not self.required[field].check( value[field] ):
+                return False
 
         for field in self.optional.keys():
             if field not in value:
                 continue
-            if not self.optional[field].check( value[field] ): return False
+            if not self.optional[field].check( value[field] ):
+                return False
 
         if len(unknown):
             rest = { }
-            for field in unknown: rest[field] = value[field]
-            if not self.rest_schema.check(rest): return False
+            for field in unknown:
+                rest[field] = value[field]
+            if not self.rest_schema.check(rest):
+                return False
 
         return True;
 
 class SeqType(_CoreType):
     @staticmethod
-    def subname(): return 'seq'
+    def subname():
+        return 'seq'
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'contents', 'tail'))):
@@ -385,7 +432,8 @@ class SeqType(_CoreType):
             self.tail_schema = rx.make_schema(schema['tail'])
 
     def check(self, value):
-        if not(type(value) in [ type([]), type(()) ]): return False
+        if not(type(value) in [ type([]), type(()) ]):
+            return False
 
         if len(value) < len(self.content_schema):
             return False
@@ -395,16 +443,18 @@ class SeqType(_CoreType):
                 return False
 
         if len(value) > len(self.content_schema):
-            if not self.tail_schema: return False
+            if not self.tail_schema:
+                return False
 
-            if not self.tail_schema.check(value[ len(self.content_schema) :  ]):
+            if not self.tail_schema.check(value[len(self.content_schema):]):
                 return False
 
         return True;
 
 class StrType(_CoreType):
     @staticmethod
-    def subname(): return 'str'
+    def subname():
+        return 'str'
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'value', 'length'))):
@@ -423,8 +473,10 @@ class StrType(_CoreType):
     def check(self, value):
         if not isinstance(value, string_types):
             return False
-        if (not self.value is None) and value != self.value: return False
-        if self.length and not self.length(len(value)): return False
+        if (not self.value is None) and value != self.value:
+            return False
+        if self.length and not self.length(len(value)):
+            return False
         return True
 
 core_types = [
