@@ -127,7 +127,7 @@ def learn(rx, name, composedtype):
         if 'invalid' in composedtype:
             check('test_valid_composed_type_{}'.format(name), 'assertFalse',
               composedtype['invalid'])
-    return composedtype.get('invalid', True)
+    return not composedtype.get('invalid', True)
 
 
 def get_schema(name, schemata):
@@ -170,8 +170,5 @@ check('test_factory_makes_factory',
 data, schemata = load_stuff()
 for name, spec in schemata.items():
     schema = get_schema(name, spec)
-    check('test_schema_makes_{}'.format(name), 'assertIsNotNone', schema)
-    if schema is None:
-        continue
-
-    check_schema(schema, spec, data, name)
+    if schema is not None:
+        check_schema(schema, spec, data, name)
