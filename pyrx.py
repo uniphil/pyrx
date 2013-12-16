@@ -114,7 +114,7 @@ class Factory(object):
         if isinstance(schema, string_types):
             schema = { "type": schema }
 
-        if not type(schema) is dict:
+        if not isinstance(schema, dict):
             raise RxError('invalid schema argument to make_schema')
 
         uri = self.expand_uri(schema["type"])
@@ -124,7 +124,7 @@ class Factory(object):
 
         type_class = self.type_registry[ uri ]
 
-        if type(type_class) is dict:
+        if isinstance(type_class, dict):
             if not set(schema.keys()).issubset(set(['type'])):
                 raise RxError('composed type does not take check arguments');
             return self.make_schema(type_class["schema"])
@@ -209,7 +209,7 @@ class ArrType(_CoreType):
             self.length = Util.make_range_check( schema["length"] )
 
     def check(self, value):
-        if not(type(value) in [ type([]), type(()) ]):
+        if not isinstance(value, (list, tuple)):
             return False
         if self.length and not self.length(len(value)):
             return False
@@ -296,7 +296,7 @@ class MapType(_CoreType):
         self.value_schema = rx.make_schema(schema['values'])
 
     def check(self, value):
-        if not(type(value) is type({})):
+        if not isinstance(value, dict):
             return False
 
         for v in value.values():
@@ -381,7 +381,7 @@ class RecType(_CoreType):
                 )
 
     def check(self, value):
-        if not(type(value) is type({})):
+        if not isinstance(value, dict):
             return False
 
         unknown = [ ]
@@ -432,7 +432,7 @@ class SeqType(_CoreType):
             self.tail_schema = rx.make_schema(schema['tail'])
 
     def check(self, value):
-        if not(type(value) in [ type([]), type(()) ]):
+        if not isinstance(value, (list, tuple)):
             return False
 
         if len(value) < len(self.content_schema):
