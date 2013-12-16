@@ -20,7 +20,7 @@ import types
 
 core_types = [ ]
 
-class Error(Exception):
+class RxError(Exception):
     pass
 
 class Util(object):
@@ -62,10 +62,10 @@ class Factory(object):
         m = re.match('^/([-._a-z0-9]*)/([-._a-z0-9]+)$', type_name)
 
         if not m:
-            raise ValueError("couldn't understand type name '%s'" % type_name)
+            raise RxError("couldn't understand type name '%s'" % type_name)
 
         if not self.prefix_registry.get(m.group(1)):
-            raise ValueError(
+            raise RxError(
                 "unknown prefix '%s' in type name '%s'" % (m.group(1), type_name)
             )
 
@@ -73,7 +73,7 @@ class Factory(object):
 
     def add_prefix(self, name, base):
         if self.prefix_registry.get(name, None):
-            raise Error("the prefix '%s' is already registered" % name)
+            raise RxError("the prefix '%s' is already registered" % name)
 
         self.prefix_registry[name] = base;
 
@@ -87,7 +87,7 @@ class Factory(object):
 
     def learn_type(self, uri, schema):
         if self.type_registry.get(uri, None):
-            raise Error("tried to learn type for already-registered uri %s" % uri)
+            raise RxError("tried to learn type for already-registered uri %s" % uri)
 
         # make sure schema is valid
         # should this be in a try/except?
@@ -100,17 +100,17 @@ class Factory(object):
             schema = { "type": schema }
 
         if not type(schema) is dict:
-            raise Error('invalid schema argument to make_schema')
+            raise RxError('invalid schema argument to make_schema')
 
         uri = self.expand_uri(schema["type"])
 
-        if not self.type_registry.get(uri): raise Error("unknown type %s" % uri)
+        if not self.type_registry.get(uri): raise RxError("unknown type %s" % uri)
 
         type_class = self.type_registry[ uri ]
 
         if type(type_class) is dict:
             if not set(schema.keys()).issubset(set(['type'])):
-                raise Error('composed type does not take check arguments');
+                raise RxError('composed type does not take check arguments');
             return self.make_schema(type_class["schema"])
         else:
             return type_class(schema, self)
@@ -122,7 +122,7 @@ class _CoreType(object):
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(['type'])):
-            raise Error('unknown parameter for //%s' % self.subname())
+            raise RxError('unknown parameter for //%s' % self.subname())
 
     def check(self, value): return False
 
@@ -132,10 +132,10 @@ class AllType(_CoreType):
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'of'))):
-            raise Error('unknown parameter for //all')
+            raise RxError('unknown parameter for //all')
         
         if not(schema.get('of') and len(schema.get('of'))):
-            raise Error('no alternatives given in //all of')
+            raise RxError('no alternatives given in //all of')
 
         self.alts = [ rx.make_schema(s) for s in schema['of'] ]
 
@@ -152,10 +152,10 @@ class AnyType(_CoreType):
         self.alts = None
 
         if not set(schema.keys()).issubset(set(('type', 'of'))):
-            raise Error('unknown parameter for //any')
+            raise RxError('unknown parameter for //any')
         
         if schema.get('of') != None:
-            if not schema['of']: raise Error('no alternatives given in //any of')
+            if not schema['of']: raise RxError('no alternatives given in //any of')
             self.alts = [ rx.make_schema(alt) for alt in schema['of'] ]
 
     def check(self, value):
@@ -174,10 +174,10 @@ class ArrType(_CoreType):
         self.length = None
 
         if not set(schema.keys()).issubset(set(('type', 'contents', 'length'))):
-            raise Error('unknown parameter for //arr')
+            raise RxError('unknown parameter for //arr')
 
         if not schema.get('contents'):
-            raise Error('no contents provided for //arr')
+            raise RxError('no contents provided for //arr')
 
         self.content_schema = rx.make_schema(schema['contents'])
 
@@ -219,14 +219,14 @@ class IntType(_CoreType):
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'range', 'value'))):
-            raise Error('unknown parameter for //int')
+            raise RxError('unknown parameter for //int')
 
         self.value = None
         if schema.has_key('value'):
             if not type(schema['value']) in (float, int, long):
-                raise Error('invalid value parameter for //int')
+                raise RxError('invalid value parameter for //int')
             if schema['value'] % 1 != 0:
-                raise Error('invalid value parameter for //int')
+                raise RxError('invalid value parameter for //int')
             self.value = schema['value']
 
         self.range = None
@@ -248,10 +248,10 @@ class MapType(_CoreType):
         self.allowed = set()
 
         if not set(schema.keys()).issubset(set(('type', 'values'))):
-            raise Error('unknown parameter for //map')
+            raise RxError('unknown parameter for //map')
 
         if not schema.get('values'):
-            raise Error('no values given for //map')
+            raise RxError('no values given for //map')
 
         self.value_schema = rx.make_schema(schema['values'])
 
@@ -275,12 +275,12 @@ class NumType(_CoreType):
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'range', 'value'))):
-            raise Error('unknown parameter for //num')
+            raise RxError('unknown parameter for //num')
 
         self.value = None
         if schema.has_key('value'):
             if not type(schema['value']) in (float, int, long):
-                raise Error('invalid value parameter for //num')
+                raise RxError('invalid value parameter for //num')
             self.value = schema['value']
 
         self.range = None
@@ -309,7 +309,7 @@ class RecType(_CoreType):
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'rest', 'required', 'optional'))):
-            raise Error('unknown parameter for //rec')
+            raise RxError('unknown parameter for //rec')
 
         self.known = set()
         self.rest_schema = None
@@ -319,7 +319,7 @@ class RecType(_CoreType):
             self.__setattr__(which, { })
             for field in schema.get(which, {}).keys():
                 if field in self.known:
-                    raise Error('%s appears in both required and optional' % field)
+                    raise RxError('%s appears in both required and optional' % field)
 
                 self.known.add(field)
 
@@ -357,10 +357,10 @@ class SeqType(_CoreType):
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'contents', 'tail'))):
-            raise Error('unknown parameter for //seq')
+            raise RxError('unknown parameter for //seq')
 
         if not schema.get('contents'):
-            raise Error('no contents provided for //seq')
+            raise RxError('no contents provided for //seq')
 
         self.content_schema = [ rx.make_schema(s) for s in schema["contents"] ]
 
@@ -392,12 +392,12 @@ class StrType(_CoreType):
 
     def __init__(self, schema, rx):
         if not set(schema.keys()).issubset(set(('type', 'value', 'length'))):
-            raise Error('unknown parameter for //str')
+            raise RxError('unknown parameter for //str')
 
         self.value = None
         if schema.has_key('value'):
             if not type(schema['value']) in (str, unicode):
-                raise Error('invalid value parameter for //str')
+                raise RxError('invalid value parameter for //str')
             self.value = schema['value']
 
         self.length = None
