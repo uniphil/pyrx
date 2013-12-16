@@ -16,9 +16,18 @@
 """
 
 import re
+import sys
 import types
 
-core_types = [ ]
+core_types = []
+
+if sys.version_info[0] == 2:
+    string_types = (str, unicode)
+    num_types = (float, long, int)
+else:
+    string_types = (str,)
+    num_types = (float, int)
+
 
 class RxError(Exception):
     pass
@@ -96,7 +105,7 @@ class Factory(object):
         self.type_registry[uri] = { "schema": schema }
 
     def make_schema(self, schema):
-        if type(schema) in (str, unicode):
+        if isinstance(schema, string_types):
             schema = { "type": schema }
 
         if not type(schema) is dict:
@@ -223,7 +232,8 @@ class IntType(_CoreType):
 
         self.value = None
         if schema.has_key('value'):
-            if not type(schema['value']) in (float, int, long):
+            if not isinstance(schema['value'], num_types) or \
+               isinstance(schema['value'], bool):
                 raise RxError('invalid value parameter for //int')
             if schema['value'] % 1 != 0:
                 raise RxError('invalid value parameter for //int')
@@ -234,7 +244,8 @@ class IntType(_CoreType):
             self.range = Util.make_range_check( schema["range"] )
 
     def check(self, value):
-        if not(type(value) in (float, int, long)): return False
+        if not isinstance(value, num_types) or isinstance(value, bool):
+            return False
         if value % 1 != 0: return False
         if self.range and not self.range(value): return False
         if (not self.value is None) and value != self.value: return False
@@ -279,7 +290,8 @@ class NumType(_CoreType):
 
         self.value = None
         if schema.has_key('value'):
-            if not type(schema['value']) in (float, int, long):
+            if not isinstance(schema['value'], num_types) or \
+               isinstance(schema['value'], bool):
                 raise RxError('invalid value parameter for //num')
             self.value = schema['value']
 
@@ -289,7 +301,8 @@ class NumType(_CoreType):
             self.range = Util.make_range_check( schema["range"] )
 
     def check(self, value):
-        if not(type(value) in (float, int, long)): return False
+        if not isinstance(value, num_types) or isinstance(value, bool):
+            return False
         if self.range and not self.range(value): return False
         if (not self.value is None) and value != self.value: return False
         return True
@@ -299,7 +312,8 @@ class OneType(_CoreType):
     def subname(): return 'one'
 
     def check(self, value):
-        if type(value) in (int, float, long, bool, str, unicode): return True
+        if isinstance(value, num_types + string_types + (bool,)):
+            return True
 
         return False
 
@@ -396,7 +410,7 @@ class StrType(_CoreType):
 
         self.value = None
         if schema.has_key('value'):
-            if not type(schema['value']) in (str, unicode):
+            if not isinstance(schema['value'], string_types):
                 raise RxError('invalid value parameter for //str')
             self.value = schema['value']
 
@@ -405,7 +419,8 @@ class StrType(_CoreType):
             self.length = Util.make_range_check( schema["length"] )
 
     def check(self, value):
-        if not type(value) in (str, unicode): return False
+        if not isinstance(value, string_types):
+            return False
         if (not self.value is None) and value != self.value: return False
         if self.length and not self.length(len(value)): return False
         return True
