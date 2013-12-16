@@ -72,6 +72,6 @@ trivial cases to make sure it doesn't straight-up crash.
 Road Map
 --------
 
-1. Porting tests from the original RX repo (but using unittest)
-2. Port to python3
-3. File support, with options for `json` and `yaml` .. ... maybe.
+* [x] Porting tests from the original RX repo (but using unittest)
+* [ ] Port to python3
+* [ ] Improve documentation
