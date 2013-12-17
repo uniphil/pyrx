@@ -58,46 +58,27 @@ class Util(object):
         return check_range
 
 
-# class Journaler(object):
-#     """Wrap types to give info about where schemas fail"""
-
-#     def __new__(cls, type):
-#         if issubclass(type, dict):
-#             return type
-#         return super(Journaler, cls).__new__(cls)
-
-#     def __init__(self, type):
-#         self.type = type
-
-#     def __call__(self, )
-
-#     def uri(self, *args, **kwargs):
-#         return selt.type.uri(*args, **kwargs)
-
-#     def check(self, *args, **kwargs):
-#         return self.type.check(*args, **kwargs)
-
-
 def trace_wrap(type_class):
 
-    journal = []
+    trace = []
 
     def _log(frame, event, arg):
         if event == 'return' and arg is False:
-            print('False'.format(frame.f_lineno), end='')
+            message = "False "
             context = frame.f_locals.copy()
             if 'self' in context and hasattr(context['self'], 'subname'):
-                print(' while checking {}'.format(context['self'].subname()), end='')
+                message += ' while checking {}'.format(context['self'].subname())
             elif 'self' in context and hasattr(context['self'], 'uri'):
-                print(' while checking {}'.format(context['self'].uri()), end='')
+                message += ' while checking {}'.format(context['self'].uri())
             if 'value' in context:
-                print(', value {}'.format(context['value']), end='')
-            print()
-        # print frame.f_lineno, event, arg, frame.f_locals
+                message += ', value {}'.format(context['value'])
+            trace.append(message)
+        #debug print frame.f_lineno, event, arg, frame.f_locals
         return _log
 
     class TracedType(type_class):
         def check(self, value, *args, **kwargs):
+            trace = []
             result = super(TracedType, self).check(value, *args, **kwargs)
             if not result:
                 import sys
@@ -106,6 +87,10 @@ def trace_wrap(type_class):
                 sys.settrace(None)
 
             return result
+
+        @property
+        def trace(self):
+            return trace
 
     def instantiate(*args, **kwargs):
         return TracedType(*args, **kwargs)

@@ -74,5 +74,5 @@ Road Map
 
 * [x] Porting tests from the original RX repo (but using unittest)
 * [x] Port to python3
-* [ ] Improve error messages on invalid schema tests
+* [x] Improve error messages on invalid schema tests
 * [ ] Improve documentation
