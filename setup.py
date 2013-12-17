@@ -2,7 +2,7 @@ from setuptools import setup
 
 readme = open('readme.md').read()
 setup(name='PyRx',
-      version='0.2.0',
+      version='0.3.0',
       #author='Philip Schleihauf',
       #author_email='uniphil@gmail.com',
       license='GPLv2',

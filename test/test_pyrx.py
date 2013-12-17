@@ -132,7 +132,7 @@ def learn(rx, name, composedtype):
     return not composedtype.get('invalid', True)
 
 
-def get_schema(name, schemata):
+def get_schema(name, schemata, trace=False):
     rx = pyrx.Factory({"register_core_types": True})
 
     if 'composedtype' in schemata:
@@ -142,7 +142,7 @@ def get_schema(name, schemata):
 
     schema = None
     try:
-        schema = rx.make_schema(schemata['schema'])
+        schema = rx.make_schema(schemata['schema'], trace=trace)
     except pyrx.RxError:
         check('test_invalid_schema_{}'.format(name), 'assertTrue',
               schemata.get('invalid', False))
@@ -174,3 +174,7 @@ for name, spec in schemata.items():
     schema = get_schema(name, spec)
     if schema is not None:
         check_schema(schema, spec, data, name)
+
+    traced_schema = get_schema(name + '_traced', spec, trace=True)
+    if traced_schema is not None:
+        check_schema(traced_schema, spec, data, name + '_traced')

@@ -2,7 +2,7 @@
     pyrx
     ~~~~
 
-    Python implementation of the Rx schema and validation system 
+    Python implementation of the Rx schema and validation system
     http://rx.codesimply.com/
 
     Forked from the main rx github repo (https://github.com/rjbs/rx) Nov 25 '13
@@ -15,6 +15,7 @@
     The license itself is GPL2: https://github.com/rjbs/rx/blob/master/LICENSE
 """
 
+from __future__ import print_function
 import re
 import sys
 import types
@@ -32,39 +33,83 @@ else:
 class RxError(Exception):
     pass
 
+
 class Util(object):
     @staticmethod
     def make_range_check(opt):
-        range = { }
+        range = {}
         for entry in opt.keys():
             if entry not in ('min', 'max', 'min-ex', 'max-ex'):
                 raise ValueError("illegal argument to make_range_check")
 
             range[entry] = opt[entry]
 
-        def check_range(value):
-            if range.get('min'   ) != None and value <  range['min'   ]:
+        def check_range(value, explain=False):
+            if range.get('min') is not None and value < range['min']:
                 return False
-            if range.get('min-ex') != None and value <= range['min-ex']:
+            if range.get('min-ex') is not None and value <= range['min-ex']:
                 return False
-            if range.get('max-ex') != None and value >= range['max-ex']:
+            if range.get('max-ex') is not None and value >= range['max-ex']:
                 return False
-            if range.get('max'   ) != None and value >  range['max'   ]:
+            if range.get('max') is not None and value > range['max']:
                 return False
             return True
 
         return check_range
 
+
+def trace_wrap(type_class):
+
+    trace = []
+
+    def _log(frame, event, arg):
+        if event == 'return' and arg is False:
+            message = "False "
+            context = frame.f_locals.copy()
+            if 'self' in context and hasattr(context['self'], 'subname'):
+                message += ' while checking {}'.format(context['self'].subname())
+            elif 'self' in context and hasattr(context['self'], 'uri'):
+                message += ' while checking {}'.format(context['self'].uri())
+            if 'value' in context:
+                message += ', value {}'.format(context['value'])
+            trace.append(message)
+        #debug print frame.f_lineno, event, arg, frame.f_locals
+        return _log
+
+    class TracedType(type_class):
+        def check(self, value, *args, **kwargs):
+            trace = []
+            result = super(TracedType, self).check(value, *args, **kwargs)
+            if not result:
+                import sys
+                sys.settrace(_log)
+                super(TracedType, self).check(value, *args, **kwargs)
+                sys.settrace(None)
+
+            return result
+
+        @property
+        def trace(self):
+            return trace
+
+    def instantiate(*args, **kwargs):
+        return TracedType(*args, **kwargs)
+
+    return instantiate
+
+
+
 class Factory(object):
     def __init__(self, opt={}):
         self.prefix_registry = {
-            '':      'tag:codesimply.com,2008:rx/core/',
+            '': 'tag:codesimply.com,2008:rx/core/',
             '.meta': 'tag:codesimply.com,2008:rx/meta/',
         }
 
         self.type_registry = {}
         if opt.get("register_core_types", False):
-            for t in core_types: self.register_type(t)
+            for t in core_types:
+                self.register_type(t)
 
     @staticmethod
     def _default_prefixes():
@@ -80,17 +125,16 @@ class Factory(object):
             raise RxError("couldn't understand type name '%s'" % type_name)
 
         if not self.prefix_registry.get(m.group(1)):
-            raise RxError(
-                "unknown prefix '%s' in type name '%s'" % (m.group(1), type_name)
-            )
+            raise RxError("unknown prefix '%s' in type name '%s'" %
+                          (m.group(1), type_name))
 
-        return '%s%s' % (self.prefix_registry[ m.group(1) ], m.group(2))
+        return '%s%s' % (self.prefix_registry[m.group(1)], m.group(2))
 
     def add_prefix(self, name, base):
         if self.prefix_registry.get(name, None):
             raise RxError("the prefix '%s' is already registered" % name)
 
-        self.prefix_registry[name] = base;
+        self.prefix_registry[name] = base
 
     def register_type(self, t):
         t_uri = t.uri()
@@ -102,17 +146,18 @@ class Factory(object):
 
     def learn_type(self, uri, schema):
         if self.type_registry.get(uri, None):
-            raise RxError("tried to learn type for already-registered uri %s" % uri)
+            raise RxError("tried to learn type for already-registered uri %s"
+                          % uri)
 
         # make sure schema is valid
         # should this be in a try/except?
         self.make_schema(schema)
 
-        self.type_registry[uri] = { "schema": schema }
+        self.type_registry[uri] = {"schema": schema}
 
-    def make_schema(self, schema):
+    def make_schema(self, schema, trace=False):
         if isinstance(schema, string_types):
-            schema = { "type": schema }
+            schema = {"type": schema}
 
         if not isinstance(schema, dict):
             raise RxError('invalid schema argument to make_schema')
@@ -122,14 +167,17 @@ class Factory(object):
         if not self.type_registry.get(uri):
             raise RxError("unknown type %s" % uri)
 
-        type_class = self.type_registry[ uri ]
+        type_class = self.type_registry[uri]
+        if trace:
+            type_class = trace_wrap(type_class)
 
         if isinstance(type_class, dict):
-            if not set(schema.keys()).issubset(set(['type'])):
-                raise RxError('composed type does not take check arguments');
+            if not set(schema.keys()) <= set(['type']):
+                raise RxError('composed type does not take check arguments')
             return self.make_schema(type_class["schema"])
         else:
             return type_class(schema, self)
+
 
 class _CoreType(object):
     @classmethod
@@ -137,11 +185,12 @@ class _CoreType(object):
         return 'tag:codesimply.com,2008:rx/core/' + self.subname()
 
     def __init__(self, schema, rx):
-        if not set(schema.keys()).issubset(set(['type'])):
+        if not set(schema.keys()) <= set(['type']):
             raise RxError('unknown parameter for //%s' % self.subname())
 
     def check(self, value):
         return False
+
 
 class AllType(_CoreType):
     @staticmethod
@@ -149,19 +198,20 @@ class AllType(_CoreType):
         return 'all'
 
     def __init__(self, schema, rx):
-        if not set(schema.keys()).issubset(set(('type', 'of'))):
+        if not set(schema.keys()) <= set(('type', 'of')):
             raise RxError('unknown parameter for //all')
-        
+
         if not(schema.get('of') and len(schema.get('of'))):
             raise RxError('no alternatives given in //all of')
 
-        self.alts = [ rx.make_schema(s) for s in schema['of'] ]
+        self.alts = [rx.make_schema(s) for s in schema['of']]
 
     def check(self, value):
         for schema in self.alts:
             if (not schema.check(value)):
                 return False
         return True
+
 
 class AnyType(_CoreType):
     @staticmethod
@@ -171,13 +221,13 @@ class AnyType(_CoreType):
     def __init__(self, schema, rx):
         self.alts = None
 
-        if not set(schema.keys()).issubset(set(('type', 'of'))):
+        if not set(schema.keys()) <= set(('type', 'of')):
             raise RxError('unknown parameter for //any')
-        
-        if schema.get('of') != None:
+
+        if schema.get('of') is not None:
             if not schema['of']:
                 raise RxError('no alternatives given in //any of')
-            self.alts = [ rx.make_schema(alt) for alt in schema['of'] ]
+            self.alts = [rx.make_schema(alt) for alt in schema['of']]
 
     def check(self, value):
         if self.alts is None:
@@ -189,6 +239,7 @@ class AnyType(_CoreType):
 
         return False
 
+
 class ArrType(_CoreType):
     @staticmethod
     def subname():
@@ -197,7 +248,7 @@ class ArrType(_CoreType):
     def __init__(self, schema, rx):
         self.length = None
 
-        if not set(schema.keys()).issubset(set(('type', 'contents', 'length'))):
+        if not set(schema.keys()) <= set(('type', 'contents', 'length')):
             raise RxError('unknown parameter for //arr')
 
         if not schema.get('contents'):
@@ -206,7 +257,7 @@ class ArrType(_CoreType):
         self.content_schema = rx.make_schema(schema['contents'])
 
         if schema.get('length'):
-            self.length = Util.make_range_check( schema["length"] )
+            self.length = Util.make_range_check(schema["length"])
 
     def check(self, value):
         if not isinstance(value, (list, tuple)):
@@ -218,7 +269,8 @@ class ArrType(_CoreType):
             if not self.content_schema.check(item):
                 return False
 
-        return True;
+        return True
+
 
 class BoolType(_CoreType):
     @staticmethod
@@ -230,6 +282,7 @@ class BoolType(_CoreType):
             return True
         return False
 
+
 class DefType(_CoreType):
     @staticmethod
     def subname():
@@ -237,6 +290,7 @@ class DefType(_CoreType):
 
     def check(self, value):
         return not(value is None)
+
 
 class FailType(_CoreType):
     @staticmethod
@@ -246,13 +300,14 @@ class FailType(_CoreType):
     def check(self, value):
         return False
 
+
 class IntType(_CoreType):
     @staticmethod
     def subname():
         return 'int'
 
     def __init__(self, schema, rx):
-        if not set(schema.keys()).issubset(set(('type', 'range', 'value'))):
+        if not set(schema.keys()) <= set(('type', 'range', 'value')):
             raise RxError('unknown parameter for //int')
 
         self.value = None
@@ -266,7 +321,7 @@ class IntType(_CoreType):
 
         self.range = None
         if 'range' in schema:
-            self.range = Util.make_range_check( schema["range"] )
+            self.range = Util.make_range_check(schema["range"])
 
     def check(self, value):
         if not isinstance(value, num_types) or isinstance(value, bool):
@@ -279,6 +334,7 @@ class IntType(_CoreType):
             return False
         return True
 
+
 class MapType(_CoreType):
     @staticmethod
     def subname():
@@ -287,7 +343,7 @@ class MapType(_CoreType):
     def __init__(self, schema, rx):
         self.allowed = set()
 
-        if not set(schema.keys()).issubset(set(('type', 'values'))):
+        if not set(schema.keys()) <= set(('type', 'values')):
             raise RxError('unknown parameter for //map')
 
         if not schema.get('values'):
@@ -303,7 +359,8 @@ class MapType(_CoreType):
             if not self.value_schema.check(v):
                 return False
 
-        return True;
+        return True
+
 
 class NilType(_CoreType):
     @staticmethod
@@ -313,13 +370,14 @@ class NilType(_CoreType):
     def check(self, value):
         return value is None
 
+
 class NumType(_CoreType):
     @staticmethod
     def subname():
         return 'num'
 
     def __init__(self, schema, rx):
-        if not set(schema.keys()).issubset(set(('type', 'range', 'value'))):
+        if not set(schema.keys()) <= set(('type', 'range', 'value')):
             raise RxError('unknown parameter for //num')
 
         self.value = None
@@ -332,7 +390,7 @@ class NumType(_CoreType):
         self.range = None
 
         if schema.get('range'):
-            self.range = Util.make_range_check( schema["range"] )
+            self.range = Util.make_range_check(schema["range"])
 
     def check(self, value):
         if not isinstance(value, num_types) or isinstance(value, bool):
@@ -342,6 +400,7 @@ class NumType(_CoreType):
         if (not self.value is None) and value != self.value:
             return False
         return True
+
 
 class OneType(_CoreType):
     @staticmethod
@@ -354,13 +413,15 @@ class OneType(_CoreType):
 
         return False
 
+
 class RecType(_CoreType):
     @staticmethod
     def subname():
         return 'rec'
 
     def __init__(self, schema, rx):
-        if not set(schema.keys()).issubset(set(('type', 'rest', 'required', 'optional'))):
+        if not set(schema.keys()) <= \
+                set(('type', 'rest', 'required', 'optional')):
             raise RxError('unknown parameter for //rec')
 
         self.known = set()
@@ -369,10 +430,11 @@ class RecType(_CoreType):
             self.rest_schema = rx.make_schema(schema['rest'])
 
         for which in ('required', 'optional'):
-            self.__setattr__(which, { })
+            self.__setattr__(which, {})
             for field in schema.get(which, {}).keys():
                 if field in self.known:
-                    raise RxError('%s appears in both required and optional' % field)
+                    raise RxError('%s appears in both required and optional' %
+                                  field)
 
                 self.known.add(field)
 
@@ -384,7 +446,7 @@ class RecType(_CoreType):
         if not isinstance(value, dict):
             return False
 
-        unknown = [ ]
+        unknown = []
         for field in value.keys():
             if not field in self.known:
                 unknown.append(field)
@@ -395,23 +457,24 @@ class RecType(_CoreType):
         for field in self.required.keys():
             if field not in value:
                 return False
-            if not self.required[field].check( value[field] ):
+            if not self.required[field].check(value[field]):
                 return False
 
         for field in self.optional.keys():
             if field not in value:
                 continue
-            if not self.optional[field].check( value[field] ):
+            if not self.optional[field].check(value[field]):
                 return False
 
         if len(unknown):
-            rest = { }
+            rest = {}
             for field in unknown:
                 rest[field] = value[field]
             if not self.rest_schema.check(rest):
                 return False
 
-        return True;
+        return True
+
 
 class SeqType(_CoreType):
     @staticmethod
@@ -419,13 +482,13 @@ class SeqType(_CoreType):
         return 'seq'
 
     def __init__(self, schema, rx):
-        if not set(schema.keys()).issubset(set(('type', 'contents', 'tail'))):
+        if not set(schema.keys()) <= set(('type', 'contents', 'tail')):
             raise RxError('unknown parameter for //seq')
 
         if not schema.get('contents'):
             raise RxError('no contents provided for //seq')
 
-        self.content_schema = [ rx.make_schema(s) for s in schema["contents"] ]
+        self.content_schema = [rx.make_schema(s) for s in schema["contents"]]
 
         self.tail_schema = None
         if (schema.get('tail')):
@@ -449,7 +512,8 @@ class SeqType(_CoreType):
             if not self.tail_schema.check(value[len(self.content_schema):]):
                 return False
 
-        return True;
+        return True
+
 
 class StrType(_CoreType):
     @staticmethod
@@ -457,7 +521,7 @@ class StrType(_CoreType):
         return 'str'
 
     def __init__(self, schema, rx):
-        if not set(schema.keys()).issubset(set(('type', 'value', 'length'))):
+        if not set(schema.keys()) <= set(('type', 'value', 'length')):
             raise RxError('unknown parameter for //str')
 
         self.value = None
@@ -468,7 +532,7 @@ class StrType(_CoreType):
 
         self.length = None
         if 'length' in schema:
-            self.length = Util.make_range_check( schema["length"] )
+            self.length = Util.make_range_check(schema["length"])
 
     def check(self, value):
         if not isinstance(value, string_types):
@@ -478,6 +542,7 @@ class StrType(_CoreType):
         if self.length and not self.length(len(value)):
             return False
         return True
+
 
 core_types = [
     AllType,  AnyType, ArrType, BoolType, DefType,
