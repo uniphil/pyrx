@@ -15,6 +15,7 @@
     The license itself is GPL2: https://github.com/rjbs/rx/blob/master/LICENSE
 """
 
+from __future__ import print_function
 import re
 import sys
 import types
@@ -55,6 +56,62 @@ class Util(object):
             return True
 
         return check_range
+
+
+# class Journaler(object):
+#     """Wrap types to give info about where schemas fail"""
+
+#     def __new__(cls, type):
+#         if issubclass(type, dict):
+#             return type
+#         return super(Journaler, cls).__new__(cls)
+
+#     def __init__(self, type):
+#         self.type = type
+
+#     def __call__(self, )
+
+#     def uri(self, *args, **kwargs):
+#         return selt.type.uri(*args, **kwargs)
+
+#     def check(self, *args, **kwargs):
+#         return self.type.check(*args, **kwargs)
+
+
+def trace_wrap(type_class):
+
+    journal = []
+
+    def _log(frame, event, arg):
+        if event == 'return' and arg is False:
+            print('False'.format(frame.f_lineno), end='')
+            context = frame.f_locals.copy()
+            if 'self' in context and hasattr(context['self'], 'subname'):
+                print(' while checking {}'.format(context['self'].subname()), end='')
+            elif 'self' in context and hasattr(context['self'], 'uri'):
+                print(' while checking {}'.format(context['self'].uri()), end='')
+            if 'value' in context:
+                print(', value {}'.format(context['value']), end='')
+            print()
+        # print frame.f_lineno, event, arg, frame.f_locals
+        return _log
+
+    class TracedType(type_class):
+        def check(self, value, *args, **kwargs):
+            result = super(TracedType, self).check(value, *args, **kwargs)
+            if not result:
+                import sys
+                sys.settrace(_log)
+                super(TracedType, self).check(value, *args, **kwargs)
+                sys.settrace(None)
+
+            return result
+
+    def instantiate(*args, **kwargs):
+        return TracedType(*args, **kwargs)
+
+    return instantiate
+
 
 
 class Factory(object):
@@ -113,7 +170,7 @@ class Factory(object):
 
         self.type_registry[uri] = {"schema": schema}
 
-    def make_schema(self, schema):
+    def make_schema(self, schema, trace=False):
         if isinstance(schema, string_types):
             schema = {"type": schema}
 
@@ -126,6 +183,8 @@ class Factory(object):
             raise RxError("unknown type %s" % uri)
 
         type_class = self.type_registry[uri]
+        if trace:
+            type_class = trace_wrap(type_class)
 
         if isinstance(type_class, dict):
             if not set(schema.keys()) <= set(['type']):
