@@ -58,14 +58,11 @@ class Util(object):
         return check_range
 
 
-def trace_wrap(type_class):
-
-    trace = []
-
-    def _log(frame, event, arg):
+def _get_logger(trace):
+    def log(frame, event, arg):
         if event == 'return' and arg is False:
             message = "False "
-            context = frame.f_locals.copy()
+            context = frame.f_locals
             if 'self' in context and hasattr(context['self'], 'subname'):
                 message += ' while checking {}'.format(context['self'].subname())
             elif 'self' in context and hasattr(context['self'], 'uri'):
@@ -74,29 +71,28 @@ def trace_wrap(type_class):
                 message += ', value {}'.format(context['value'])
             trace.append(message)
         #debug print frame.f_lineno, event, arg, frame.f_locals
-        return _log
+        return log
+    return log
 
+
+def trace_wrap(type_class):
     class TracedType(type_class):
+        def __init__(self, *args, **kwargs):
+            super(TracedType, self).__init__(*args, **kwargs)
+            self.trace = []
+
         def check(self, value, *args, **kwargs):
-            trace = []
+            self.trace = []
+
             result = super(TracedType, self).check(value, *args, **kwargs)
             if not result:
-                import sys
-                sys.settrace(_log)
+                sys.settrace(_get_logger(self.trace))
                 super(TracedType, self).check(value, *args, **kwargs)
                 sys.settrace(None)
 
             return result
 
-        @property
-        def trace(self):
-            return trace
-
-    def instantiate(*args, **kwargs):
-        return TracedType(*args, **kwargs)
-
-    return instantiate
-
+    return lambda *args, **kwargs: TracedType(*args, **kwargs)
 
 
 class Factory(object):
